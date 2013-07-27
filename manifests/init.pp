@@ -16,17 +16,19 @@ class heat {
   exec {"pip-upgrade-cinderclient":
     path    => ["/bin","/usr/bin","/sbin","/usr/sbin","/usr/local/bin"],
     command => "pip install --upgrade python-cinderclient",
-    unless  => "cinder --version |& grep 1.0.4",
+    unless  => 'grep 1.0.4 /usr/local/bin/cinder',
     notify  => Exec['pip-upgrade-boto','pip-upgrade-paramiko'],
   }
   exec {"pip-upgrade-boto":
     path    => ["/bin","/usr/bin","/sbin","/usr/sbin","/usr/local/bin"],
     command => "pip install --upgrade boto",
+    refreshonly => true,
     require  => Exec["pip-upgrade-cinderclient"],
   }
   exec {"pip-upgrade-paramiko":
     path    => ["/bin","/usr/bin","/sbin","/usr/sbin","/usr/local/bin"],
     command => "pip install --upgrade paramiko",
+    refreshonly => true,
     require  => Exec["pip-upgrade-cinderclient"],
   }
 
@@ -38,9 +40,29 @@ class heat {
   } 
   exec {"heat-fix-passwd":
     path    => ["/bin","/usr/bin","/sbin","/usr/sbin","/usr/local/bin"],
-    command => "for i in heat-api.conf heat-api-cfn.conf heat-api-cloudwatch.conf heat-engine.conf; do sed -e 's/ = verybadpass/=Cisco123/' -i /etc/heat/$i; sed -e 's/password=guest/password=openstack_rabbit_password' -i /etc/heat/$i; sed -e '/openstack_rabbit_password/a rabbit_user=openstack_rabbit_user' -i /etc/heat/$i; sed -e 's/service/services/' -i /etc/heat/$i; done",
+    command => "bash -c \$(for i in /etc/heat/heat*.conf ; do sed -e \"s/verybadpass/${::admin_password}/\" -i \$i; sed -e \"s/password=guest/password=${::rabbit_password}/\" -i \$i; sed -e \"/openstack_rabbit_password/a rabbit_user=${::rabit_user}\" -i \$i; sed -e \"s/service[ ]*$/services/\" -i \$i; done) ",
     unless => 'grep Cisco123 /etc/heat/heat-api.conf',
     require => Exec['heat-install']
   }
     
+  file {"/etc/heat/heat.conf":
+    ensure => present,
+    content => "
+[DEFAULT]
+rabbit_host=$::controller_node_address
+rabbit_port=5672
+rabbit_use_ssl=false
+rabbit_userid=$::rabbit_user
+rabbit_password=$::rabbit_password
+rabbit_virtual_host=/
+rabbit_retry_interval=1
+rabbit_retry_backoff=2
+[paste_deploy]
+[rpc_notifier2]
+[ec2authtoken]
+[matchmaker_redis]
+[matchmaker_ring]
+",
+    require => Exec['heat-install'],
+  }
 }
