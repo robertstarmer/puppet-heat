@@ -40,7 +40,7 @@ class heat {
     path    => ["/bin","/usr/bin","/sbin","/usr/sbin","/usr/local/bin"],
     command => "for i in heat-api.conf heat-api-cfn.conf heat-api-cloudwatch.conf heat-engine.conf; do sed -e 's/ = verybadpass/=Cisco123/' -i /etc/heat/$i; sed -e 's/password=guest/password=openstack_rabbit_password' -i /etc/heat/$i; sed -e '/openstack_rabbit_password/a rabbit_user=openstack_rabbit_user' -i /etc/heat/$i; sed -e 's/service/services/' -i /etc/heat/$i; done",
     unless => 'grep Cisco123 /etc/heat/heat-api.conf',
-    require => Exec['heat-instal']
+    require => Exec['heat-install']
   }
     
 }
