@@ -35,10 +35,6 @@ class heat {
     command => "pip install --upgrade paramiko",
     require  => Exec["pip-upgrade-cinderclient"],
   }
-# ENV Variables:
-SERVICE_HOST
-SERVICE_PASSWORD
-
 
   exec {"heat-install":
     path    => ["/bin","/usr/bin","/sbin","/usr/sbin","/usr/local/bin","/tmp/heat","/tmp/heat/bin"],
