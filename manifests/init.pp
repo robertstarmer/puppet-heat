@@ -36,8 +36,9 @@ class heat {
     path    => ["/bin","/usr/bin","/sbin","/usr/sbin","/usr/local/bin","/tmp/heat"],
     command => "/tmp/heat/install.sh",
     unless => "which heat-api",
-    require => [Vcsrepo['/tmp/heat'],Exec['pip-upgrade-boto','pip-upgrade-cinderclient']],
+    require => Vcsrepo['/tmp/heat'],
   } 
+
   exec {"heat-fix-passwd":
     path    => ["/bin","/usr/bin","/sbin","/usr/sbin","/usr/local/bin"],
     command => "bash -c \$(for i in /etc/heat/heat*.conf ; do sed -e \"s/verybadpass/${::admin_password}/\" -i \$i; sed -e \"s/password=guest/password=${::rabbit_password}/\" -i \$i; sed -e \"/openstack_rabbit_password/a rabbit_user=${::rabit_user}\" -i \$i; sed -e \"s/service[ ]*$/services/\" -i \$i; done) ",
@@ -63,6 +64,14 @@ rabbit_retry_backoff=2
 [matchmaker_redis]
 [matchmaker_ring]
 ",
+    require => Exec['heat-install'],
+  }
+
+  exec {"heat-keystone":
+    path    => ["/bin","/usr/bin","/sbin","/usr/sbin","/usr/local/bin"],
+    environment => ["PATH=/bin:/usr/bin:/sbin:/usr/sbin:/usr/local/bin","SERVICE_ENDPOINT=http://${ipaddress}:35357/v2.0/","SERVICE_TOKEN=keystone_admin_token","OS_AUTH_URL=http://${ipaddress}:5000/v2.0/","OS_USERNAME=admin OS_PASSWORD=Cisco123","SERVICE_HOST=${ipaddress}","SERVICE_TENANT=services","ADMIN_ROLE=admin","OS_TENANT=services"],
+    command => "bash -c \$(sed -e 's/service 1/services 1/' -i /usr/local/bin/heat-keystone-setup ; heat-keystone-setup)",
+    unless  => "bash -c \$(keystone endpoint-list | grep 8004)",
     require => Exec['heat-install'],
   }
 }
