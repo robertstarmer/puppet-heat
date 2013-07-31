@@ -1,5 +1,6 @@
 class heat {
 
+  Exec { logoutput=>true }
   package { ["gcc","python2.7-dev","git","build-essential","devscripts","debhelper","python-all","gdebi-core","python-setuptools","python-prettytable","python-lxml","libguestfs*"]:
     ensure => latest,
   } 
@@ -33,15 +34,16 @@ class heat {
   }
 
   exec {"heat-install":
+    cwd => '/tmp/heat',
     path    => ["/bin","/usr/bin","/sbin","/usr/sbin","/usr/local/bin","/tmp/heat"],
     command => "/tmp/heat/install.sh",
-    unless => "which heat-api",
+    unless => "test -f /etc/heat/heat.conf.sample",
     require => Vcsrepo['/tmp/heat'],
   } 
 
   exec {"heat-fix-passwd":
     path    => ["/bin","/usr/bin","/sbin","/usr/sbin","/usr/local/bin"],
-    command => "bash -c \$(for i in /etc/heat/heat*.conf ; do sed -e \"s/verybadpass/${::admin_password}/\" -i \$i; sed -e \"s/password=guest/password=${::rabbit_password}/\" -i \$i; sed -e \"/openstack_rabbit_password/a rabbit_user=${::rabit_user}\" -i \$i; sed -e \"s/service[ ]*$/services/\" -i \$i; done) ",
+    command => "bash \$(for i in /etc/heat/heat*.conf ; do sed -e \"s/verybadpass/${::admin_password}/\" -i \$i; sed -e \"s/password=guest/password=${::rabbit_password}/\" -i \$i; sed -e \"/openstack_rabbit_password/a rabbit_user=${::rabit_user}\" -i \$i; sed -e \"s/service[ ]*$/services/\" -i \$i; done)",
     unless => 'grep Cisco123 /etc/heat/heat-api.conf',
     require => Exec['heat-install']
   }
@@ -50,11 +52,11 @@ class heat {
     ensure => present,
     content => "
 [DEFAULT]
-rabbit_host=$::controller_node_address
+rabbit_host=${::controller_node_address}
 rabbit_port=5672
 rabbit_use_ssl=false
-rabbit_userid=$::rabbit_user
-rabbit_password=$::rabbit_password
+rabbit_userid=${::rabbit_user}
+rabbit_password=${::rabbit_password}
 rabbit_virtual_host=/
 rabbit_retry_interval=1
 rabbit_retry_backoff=2
@@ -69,9 +71,9 @@ rabbit_retry_backoff=2
 
   exec {"heat-keystone":
     path    => ["/bin","/usr/bin","/sbin","/usr/sbin","/usr/local/bin"],
-    environment => ["PATH=/bin:/usr/bin:/sbin:/usr/sbin:/usr/local/bin","SERVICE_ENDPOINT=http://${ipaddress}:35357/v2.0/","SERVICE_TOKEN=keystone_admin_token","OS_AUTH_URL=http://${ipaddress}:5000/v2.0/","OS_USERNAME=admin OS_PASSWORD=Cisco123","SERVICE_HOST=${ipaddress}","SERVICE_TENANT=services","ADMIN_ROLE=admin","OS_TENANT=services"],
-    command => "bash -c \$(sed -e 's/service 1/services 1/' -i /usr/local/bin/heat-keystone-setup ; heat-keystone-setup)",
-    unless  => "bash -c \$(keystone endpoint-list | grep 8004)",
+    environment => ["SERVICE_ENDPOINT=http://${ipaddress}:35357/v2.0/","SERVICE_TOKEN=keystone_admin_token","SERVICE_PASSWORD=${::admin_password}","OS_AUTH_URL=http://${ipaddress}:5000/v2.0/","OS_USERNAME=admin OS_PASSWORD=Cisco123","SERVICE_HOST=${ipaddress}","SERVICE_TENANT=services","ADMIN_ROLE=admin","OS_TENANT=services"],
+    command => "sed -e 's/service 1/services 1/' -i /usr/local/bin/heat-keystone-setup ; heat-keystone-setup",
+    unless  => "keystone endpoint-list | grep 8004",
     require => Exec['heat-install'],
   }
 }
