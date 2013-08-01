@@ -1,6 +1,5 @@
 class heat {
 
-  Exec { logoutput=>true }
   package { ["gcc","python2.7-dev","git","build-essential","devscripts","debhelper","python-all","gdebi-core","python-setuptools","python-prettytable","python-lxml","libguestfs*"]:
     ensure => latest,
   } 
@@ -116,7 +115,7 @@ sed -e \'s/Values" : "U10/Pattern" : "U10.*/\' -i WordPress_Single_Instance_deb.
 glance image-create --name=U10-x86_64-cfntools --disk-format=qcow2 --container-format=bare < F18-x86_64-cfntools.qcow2
 key_path=/tmp/id_rsa
 if [ ! -f $key_path ]; then
-  ssh-keygen -f $key_path -t rsa -N ''
+  ssh-keygen -f $key_path -t rsa -N \'\' 
 fi
 nova keypair-add --pub_key /tmp/id_rsa.pub ${USER}_key
 quantum security-group-rule-create --protocol icmp --direction ingress default
