@@ -1,6 +1,9 @@
 class heat {
+  
+  $package_list = ['gcc','python2.7-dev','git','build-essential','devscripts','debhelper','python-all','gdebi-core','python-setuptools','python-prettytable','python-lxml','libguestfs*']
 
-  package { ["gcc","python2.7-dev","git","build-essential","devscripts","debhelper","python-all","gdebi-core","python-setuptools","python-prettytable","python-lxml","libguestfs*"]:
+  package { "package_list":
+    name => $package_list,
     ensure => latest,
   } 
   exec {"pip-install-python-heatclient":
@@ -17,27 +20,40 @@ class heat {
     path    => ["/bin","/usr/bin","/sbin","/usr/sbin","/usr/local/bin"],
     command => "pip install --upgrade python-cinderclient",
     unless  => 'grep 1.0.4 /usr/local/bin/cinder',
-    notify  => Exec['pip-upgrade-boto','pip-upgrade-paramiko'],
+    notify  => Exec['pip-upgrade-boto','pip-upgrade-paramiko','pip-upgrade-pbr'],
+  }
+  exec {"pip-upgrade-cielometerclient":
+    path    => ["/bin","/usr/bin","/sbin","/usr/sbin","/usr/local/bin"],
+    command => "pip install --upgrade python-cielometerclient",
+    unless  => 'grep 1.0.4 /usr/local/bin/cinder',
+    notify  => Exec['pip-upgrade-boto','pip-upgrade-paramiko','pip-upgrade-pbr'],
   }
   exec {"pip-upgrade-boto":
     path    => ["/bin","/usr/bin","/sbin","/usr/sbin","/usr/local/bin"],
     command => "pip install --upgrade boto",
     refreshonly => true,
-    require  => Exec["pip-upgrade-cinderclient"],
+    require  => Exec["pip-upgrade-cinderclient","pip-upgrade-cielometerclient"],
   }
   exec {"pip-upgrade-paramiko":
     path    => ["/bin","/usr/bin","/sbin","/usr/sbin","/usr/local/bin"],
     command => "pip install --upgrade paramiko",
     refreshonly => true,
-    require  => Exec["pip-upgrade-cinderclient"],
+    require  => Exec["pip-upgrade-cinderclient","pip-upgrade-cielometerclient"],
   }
+  exec {"pip-upgrade-pbr":
+    path    => ["/bin","/usr/bin","/sbin","/usr/sbin","/usr/local/bin"],
+    command => "pip install --upgrade pbr",
+    refreshonly => true,
+    require  => Exec["pip-upgrade-cinderclient","pip-upgrade-cielometerclient"],
+  }
+    
 
   exec {"heat-install":
     cwd => '/tmp/heat',
     path    => ["/bin","/usr/bin","/sbin","/usr/sbin","/usr/local/bin","/tmp/heat"],
-    command => "/tmp/heat/install.sh",
+    command => "sed -e '/.*cielometer.*/d' -i /tmp/heat/requirements.txt; /tmp/heat/install.sh",
     unless => "test -f /etc/heat/heat.conf.sample",
-    require => Vcsrepo['/tmp/heat'],
+    require => [Vcsrepo['/tmp/heat'],Exec['pip-upgrade-pbr'],Package['package_list']]
   } 
 
   exec {"heat-fix-passwd":
